@@ -41,3 +41,7 @@ The phone layout uses a reduced particle budget and a denser ASCII inner accreti
 ### v1.5 mobile visual pass
 
 Desktop rendering is unchanged. On phones the black hole is flatter, moved slightly inward, and gains two broken spiral ASCII lanes so the accretion disk remains legible instead of collapsing into a circular cluster.
+
+### v1.6 mobile depth pass
+
+The phone-only accretion lanes are now split into back and front passes, so one side goes behind the black hole and the other crosses in front of it. Animation speed was also increased to avoid a static-looking ring.

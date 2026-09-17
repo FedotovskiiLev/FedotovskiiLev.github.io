@@ -209,32 +209,37 @@
       ctx.fillText(glyphs[glyphIndex],rx,ry);
     }
 
-    if(mobile()){
-      // Two coherent, broken spiral lanes. These are what make the object read
-      // as an accretion disk on a small screen; they are not a separate halo.
+    function renderMobileSpiralLanes(pass){
+      if(!mobile()) return;
       ctx.font="6px ui-monospace, SFMono-Regular, Consolas, monospace";
 
       for(let lane=0;lane<2;lane++){
-        const samples=150;
+        const samples=158;
         const laneOffset=lane===0?-0.34:0.38;
 
         for(let i=0;i<samples;i++){
           const t=i/(samples-1);
           const angle=
-            t*Math.PI*2.55 +
+            t*Math.PI*2.72 +
             lane*Math.PI*.9 +
-            now*.000010;
+            now*.00023;
 
-          // Radius slowly winds inward instead of forming a closed ring.
+          // Radius winds inward instead of forming a closed ring.
           const radius=
-            horizon*(4.0 - 2.30*t) +
+            horizon*(4.05 - 2.38*t) +
             Math.sin(angle*2.1+lane)*horizon*.10;
 
-          // Intentional gaps keep it ASCII/filamentary.
+          // Intentional gaps keep it filamentary.
           const visibility=
             Math.sin(angle*3.15 + lane*1.7) +
             Math.sin(angle*7.2 - lane)*.28;
           if(visibility < -.62) continue;
+
+          // Half of the disk should pass behind the hole, half in front,
+          // like Saturn's rings. We split rendering into two passes.
+          const frontness=Math.sin(angle);
+          if(pass==="back" && frontness > -0.02) continue;
+          if(pass==="front" && frontness <= -0.02) continue;
 
           const point=project(radius,angle,laneOffset);
           const rx=point.x+(cx-centerX);
@@ -242,33 +247,33 @@
 
           if(rx<-12||rx>w+12||ry<-12||ry>h+12) continue;
 
-          const inward=1-t;
-          const alpha=.14 + t*.27 + Math.max(0,visibility)*.08;
-          const shade=Math.floor(172 + t*57);
+          const alpha=.13 + t*.26 + Math.max(0,visibility)*.08 + Math.max(0,frontness)*.06;
+          const shade=Math.floor(170 + t*58 + Math.max(0,frontness)*18);
           const char=glyphs[3 + ((i + lane*2) % 7)];
 
-          ctx.fillStyle=`rgba(${shade},${shade},${Math.max(158,shade-10)},${Math.min(.72,alpha)})`;
+          ctx.fillStyle=`rgba(${shade},${shade},${Math.max(158,shade-10)},${Math.min(.74,alpha)})`;
           ctx.fillText(char,rx,ry);
         }
       }
     }
 
-    // On phones the canvas is physically small, so the event horizon can
-    // disappear into the black page. Draw a broken, ASCII-only inner stream
-    // in the *same projected disk plane*. It is intentionally incomplete:
-    // this reads as hot accretion material, not as a detached grey circle.
-    if(mobile()){
+    function renderMobileInnerStream(pass){
+      if(!mobile()) return;
       ctx.font="6px ui-monospace, SFMono-Regular, Consolas, monospace";
-      const laneCount=112;
+      const laneCount=116;
 
       for(let i=0;i<laneCount;i++){
-        const angle=(i/laneCount)*Math.PI*2 + now*.000015;
+        const angle=(i/laneCount)*Math.PI*2 + now*.00018;
         const gate=
           Math.sin(angle*2.7+0.7) +
           Math.sin(angle*5.1-0.35)*.42;
 
-        // Leave gaps so this remains a spiral filament rather than a ring.
+        // Leave gaps so this remains a hot inner stream rather than a ring.
         if(gate < -.28) continue;
+
+        const frontness=Math.sin(angle);
+        if(pass==="back" && frontness > -0.02) continue;
+        if(pass==="front" && frontness <= -0.02) continue;
 
         const ripple=1.43 + .12*Math.sin(angle*3.4+1.1);
         const radius=horizon*ripple;
@@ -276,19 +281,26 @@
         const rx=point.x+(cx-centerX);
         const ry=point.y+(cy-centerY);
 
-        const front=Math.sin(angle-diskRotation);
-        const alpha=.20 + Math.max(0,front)*.24 + (gate+.28)*.085;
-        const shade=Math.floor(205 + Math.max(0,front)*38);
+        const alpha=.18 + Math.max(0,frontness)*.22 + (gate+.28)*.085;
+        const shade=Math.floor(203 + Math.max(0,frontness)*36);
         const char=glyphs[Math.min(glyphs.length-1,6+(i%5))];
 
-        ctx.fillStyle=`rgba(${shade},${shade},${shade-8},${Math.min(.88,alpha)})`;
+        ctx.fillStyle=`rgba(${shade},${shade},${shade-8},${Math.min(.86,alpha)})`;
         ctx.fillText(char,rx,ry);
       }
     }
 
+    // Behind-the-hole part of the mobile disk.
+    renderMobileSpiralLanes("back");
+    renderMobileInnerStream("back");
+
     // The core masks the innermost particles and therefore shares exactly the
     // same center and projected orientation as the accretion flow.
     drawCore(cx,cy);
+
+    // In-front part of the mobile disk.
+    renderMobileSpiralLanes("front");
+    renderMobileInnerStream("front");
 
     requestAnimationFrame(draw);
   }
