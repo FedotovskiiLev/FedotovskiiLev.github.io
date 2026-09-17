@@ -15,10 +15,11 @@ html{scroll-behavior:smooth;background:var(--bg)}
 body{
   margin:0;
   min-height:100vh;
-  background:var(--bg);
+  background:transparent;
   color:var(--fg);
   font-family:var(--mono);
   overflow-x:hidden;
+  position:relative;
 }
 
 ::selection{background:var(--fg);color:var(--bg)}
@@ -29,7 +30,8 @@ a{color:inherit}
   inset:0;
   width:100%;
   height:100%;
-  z-index:-4;
+  z-index:0;
+  pointer-events:none;
   background:#020304;
 }
 
@@ -37,7 +39,7 @@ a{color:inherit}
   position:fixed;
   inset:0;
   pointer-events:none;
-  z-index:-3;
+  z-index:1;
   background:
     radial-gradient(circle at 58% 43%, transparent 0 20%, rgba(0,0,0,.08) 37%, rgba(0,0,0,.55) 76%, rgba(0,0,0,.88) 100%),
     linear-gradient(90deg,rgba(0,0,0,.60) 0%,rgba(0,0,0,.12) 45%,rgba(0,0,0,.35) 100%);
@@ -47,7 +49,7 @@ a{color:inherit}
   position:fixed;
   inset:0;
   pointer-events:none;
-  z-index:-2;
+  z-index:2;
   opacity:.055;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
   mix-blend-mode:screen;
@@ -334,4 +336,9 @@ footer{
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
   .blink{animation:none}
+}
+
+main, footer{
+  position:relative;
+  z-index:3;
 }

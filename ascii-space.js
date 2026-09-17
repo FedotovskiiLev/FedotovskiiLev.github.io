@@ -45,7 +45,7 @@
     centerX = w * (w < 760 ? .66 : .69);
     centerY = h * .42;
 
-    const density = Math.min(3600, Math.max(1500, Math.floor(w*h/470)));
+    const density = Math.min(4200, Math.max(1800, Math.floor(w*h/430)));
     particles.length = 0;
     for(let i=0;i<density;i++){
       const p={}; resetParticle(p,true); particles.push(p);
@@ -132,10 +132,10 @@
 
       const nearHorizon = Math.exp(-Math.pow((p.r-horizon*1.75)/(horizon*1.15),2));
       const edgeFade = Math.min(1, p.r/(horizon*1.1)) * Math.max(.15,1-p.r/(Math.max(w,h)*.86));
-      const alpha = Math.min(.92, (.13+p.bright*.55 + nearHorizon*.27) * edgeFade);
+      const alpha = Math.min(.96, (.19+p.bright*.62 + nearHorizon*.34) * edgeFade);
       const ci = Math.min(chars.length-1, Math.floor(p.char + nearHorizon*2.2));
 
-      const shade = Math.floor(188 + 50*nearHorizon + 16*p.z);
+      const shade = Math.floor(198 + 49*nearHorizon + 12*p.z);
       ctx.fillStyle = `rgba(${shade},${shade},${Math.max(175,shade-12)},${alpha})`;
       ctx.fillText(chars[ci],rx,ry);
     }
