@@ -18,7 +18,8 @@
 
     <nav class="topnav" aria-label="Primary">
       <a href="#projects" data-ru="проекты" data-en="projects">проекты</a>
-      <a href="https://github.com/Lev-Fedotovskii" target="_blank" rel="noreferrer">github ↗</a>
+      <a class="nav-github" href="https://github.com/Lev-Fedotovskii" target="_blank" rel="noreferrer">github ↗</a>
+      <a class="nav-telegram" href="https://t.me/haltontDev" target="_blank" rel="noreferrer">telegram ↗</a>
       <button id="lang" class="lang" type="button" aria-label="Switch language">RU</button>
     </nav>
   </header>
@@ -44,6 +45,7 @@
       <div class="hero-actions">
         <a class="button primary" href="#projects" data-ru="смотреть проекты ↓" data-en="view projects ↓">смотреть проекты ↓</a>
         <a class="button" href="https://github.com/Lev-Fedotovskii" target="_blank" rel="noreferrer">github ↗</a>
+        <a class="button" href="https://t.me/haltontDev" target="_blank" rel="noreferrer">telegram ↗</a>
       </div>
     </section>
 
@@ -103,16 +105,41 @@
           </div>
         </article>
 
-        <article class="project-card placeholder">
+        <article class="project-card zeitgeist">
           <div class="project-top">
             <span class="project-no">003</span>
+            <span class="project-state development"
+                  data-ru="кодовое имя / в разработке"
+                  data-en="codename / in development">кодовое имя / в разработке</span>
+          </div>
+
+          <h3>Zeitgeist</h3>
+          <p data-ru="Simulation sandbox о жизни внутри автономного мира: физическое присутствие от первого лица и стратегический масштаб — два способа смотреть на одну развивающуюся цивилизацию."
+             data-en="A simulation sandbox about living inside an autonomous world: first-person physical presence and strategic scale are two views of the same evolving civilization.">
+            Simulation sandbox о жизни внутри автономного мира: физическое присутствие от первого лица и стратегический масштаб — два способа смотреть на одну развивающуюся цивилизацию.
+          </p>
+
+          <div class="tags">
+            <span>Godot</span><span>simulation</span><span>voxel world</span><span>R&amp;D</span>
+          </div>
+
+          <div class="project-links">
+            <span class="project-private"
+                  data-ru="ИСХОДНИКИ ПОКА НЕ ОПУБЛИКОВАНЫ"
+                  data-en="SOURCE NOT PUBLIC YET">ИСХОДНИКИ ПОКА НЕ ОПУБЛИКОВАНЫ</span>
+          </div>
+        </article>
+
+        <article class="project-card placeholder">
+          <div class="project-top">
+            <span class="project-no">004</span>
             <span class="project-state dim" data-ru="скоро" data-en="soon">скоро</span>
           </div>
 
           <h3>...</h3>
-          <p data-ru="Эта страница специально оставлена простой: новые штуки потом просто добавятся сюда."
-             data-en="This page is intentionally simple: new things will just appear here later.">
-            Эта страница специально оставлена простой: новые штуки потом просто добавятся сюда.
+          <p data-ru="Страница специально остаётся простой: новые проекты потом просто добавятся сюда."
+             data-en="The page intentionally stays simple: new projects can just be added here later.">
+            Страница специально остаётся простой: новые проекты потом просто добавятся сюда.
           </p>
         </article>
       </div>
@@ -129,7 +156,7 @@
 
   <footer>
     <span>© <span id="year"></span> Lev Fedotovskii</span>
-    <span class="coords">ascii gravity field / client-side canvas</span>
+    <span class="coords">ascii gravity field / client-side canvas · <a href="https://t.me/haltontDev" target="_blank" rel="noreferrer">t.me/haltontDev ↗</a></span>
   </footer>
 
   <script src="ascii-space.js"></script>

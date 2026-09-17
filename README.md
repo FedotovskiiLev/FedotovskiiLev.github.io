@@ -25,5 +25,11 @@ site.js
 
 - **Setka / Сетка** — university planner;
 - **FAILED Calculator** — mathematical experiment with degrading memory.
+- **Zeitgeist** — codename for a simulation-sandbox game currently in development; source is not public yet.
 
 The page is intentionally small so it can grow later without redesigning the entire site.
+
+## Contact
+
+- GitHub: `Lev-Fedotovskii`
+- Telegram: `@haltontDev`

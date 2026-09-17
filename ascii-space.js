@@ -4,156 +4,217 @@
   const canvas = document.getElementById("ascii-space");
   const ctx = canvas.getContext("2d", { alpha: false });
 
-  const chars = ["·",".",":","-","=","+","*","x","X","#","@"];
+  const glyphs = ["·",".",":","-","=","+","*","x","X","#","@"];
   const particles = [];
   const stars = [];
-  const prefersReduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const DPR_CAP = 1.35;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  let w = 0, h = 0, dpr = 1;
-  let centerX = 0, centerY = 0;
-  let pointerX = 0, pointerY = 0;
-  let last = performance.now();
-  let lastFrame = 0;
+  let w=0,h=0,dpr=1;
+  let centerX=0,centerY=0;
+  let mouseX=0,mouseY=0;
+  let lastTime=performance.now();
+  let lastFrame=0;
 
-  function rand(a,b){ return a + Math.random()*(b-a); }
+  let diskTilt=.48;
+  let diskRotation=-.18;
+  let horizon=52;
+  let maxRadius=700;
+
+  const rand=(a,b)=>a+Math.random()*(b-a);
+
+  function mobile(){
+    return w < 650;
+  }
 
   function resetParticle(p, initial=false){
-    const sideBias = Math.random();
-    p.r = rand(Math.min(w,h)*0.08, Math.max(w,h)*0.77);
-    p.a = rand(0,Math.PI*2);
-    p.z = rand(.28,1);
-    p.speed = rand(.035,.18) * (Math.random()<.1 ? 1.8 : 1);
-    p.tilt = rand(.25,.58);
-    p.phase = rand(0,Math.PI*2);
-    p.life = initial ? rand(0,1) : 0;
-    p.char = Math.floor(rand(0,chars.length-1));
-    p.bright = rand(.22,.9);
-    p.drift = rand(-.0008,.0008);
+    // More samples toward the inner half of the disk, where the spiral
+    // should visually read as a coherent accretion flow.
+    const u=Math.random();
+    const inner=horizon*1.12;
+    p.r=inner+(maxRadius-inner)*Math.pow(u,.72);
+    p.a=rand(0,Math.PI*2);
+    p.phase=rand(0,Math.PI*2);
+    p.lane=rand(-1,1);
+    p.depth=rand(.35,1);
+    p.speed=rand(.045,.145)*(Math.random()<.08?1.7:1);
+    p.glyph=Math.floor(rand(0,glyphs.length-.01));
+    p.brightness=rand(.20,.88);
+    p.life=initial?rand(0,.9):0;
   }
 
   function resize(){
-    dpr = Math.min(devicePixelRatio || 1, DPR_CAP);
-    w = innerWidth;
-    h = innerHeight;
-    canvas.width = Math.floor(w*dpr);
-    canvas.height = Math.floor(h*dpr);
-    canvas.style.width = w+"px";
-    canvas.style.height = h+"px";
+    dpr=Math.min(devicePixelRatio||1,mobile()?1.15:1.35);
+    w=innerWidth;
+    h=innerHeight;
+
+    canvas.width=Math.floor(w*dpr);
+    canvas.height=Math.floor(h*dpr);
+    canvas.style.width=w+"px";
+    canvas.style.height=h+"px";
     ctx.setTransform(dpr,0,0,dpr,0,0);
 
-    centerX = w * (w < 760 ? .66 : .69);
-    centerY = h * .42;
-
-    const density = Math.min(4200, Math.max(1800, Math.floor(w*h/430)));
-    particles.length = 0;
-    for(let i=0;i<density;i++){
-      const p={}; resetParticle(p,true); particles.push(p);
+    if(mobile()){
+      centerX=w*.73;
+      centerY=h*.285;
+      diskTilt=.57;
+      diskRotation=-.22;
+      horizon=Math.max(31,Math.min(w,h)*.092);
+      maxRadius=Math.max(w,h)*.78;
+    }else{
+      centerX=w*.705;
+      centerY=h*.405;
+      diskTilt=.46;
+      diskRotation=-.19;
+      horizon=Math.min(w,h)*.070;
+      maxRadius=Math.max(w,h)*.72;
     }
 
-    stars.length = 0;
-    const starCount = Math.floor(w*h/15000);
+    // Keep phones substantially cheaper than desktop.
+    const target=mobile()
+      ? Math.min(1750,Math.max(900,Math.floor(w*h/300)))
+      : Math.min(3900,Math.max(1900,Math.floor(w*h/450)));
+
+    particles.length=0;
+    for(let i=0;i<target;i++){
+      const p={};
+      resetParticle(p,true);
+      particles.push(p);
+    }
+
+    stars.length=0;
+    const starCount=Math.floor(w*h/(mobile()?35000:28500));
     for(let i=0;i<starCount;i++){
       stars.push({
         x:Math.random()*w,
         y:Math.random()*h,
-        a:rand(.08,.34),
-        c:chars[Math.floor(rand(0,6))]
+        alpha:rand(.035,.17),
+        char:glyphs[Math.floor(rand(0,5))]
       });
     }
   }
 
-  function draw(t){
-    const now = t || performance.now();
-    if(now - lastFrame < 32){ requestAnimationFrame(draw); return; }
-    lastFrame = now;
-    const dt = Math.min(.034,(now-last)/1000 || .016);
-    last = now;
+  function project(radius,angle,lane=0){
+    // All streams share one disk plane. A small lane warp creates separate
+    // filaments without making the black hole and disk look unrelated.
+    const warp=1+Math.sin(angle*2.2+lane*2.6)*.026;
+    const rr=radius*warp;
+    const localTilt=diskTilt+lane*.025;
 
-    ctx.fillStyle = "#020304";
-    ctx.fillRect(0,0,w,h);
+    let x=Math.cos(angle)*rr;
+    let y=Math.sin(angle)*rr*localTilt;
 
-    // Sparse static star field.
-    ctx.font = "7px ui-monospace, SFMono-Regular, Consolas, monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    for(const s of stars){
-      ctx.fillStyle = `rgba(220,222,215,${s.a})`;
-      ctx.fillText(s.c,s.x,s.y);
-    }
+    // Thin spiral filament displacement, strongest farther from the core.
+    const filament=Math.sin(angle*3.15+lane*5.5)*Math.min(10,rr*.012);
+    y+=filament;
 
-    const px = pointerX * 15;
-    const py = pointerY * 9;
-    const cx = centerX + px;
-    const cy = centerY + py;
+    const c=Math.cos(diskRotation),s=Math.sin(diskRotation);
+    return {
+      x:centerX+x*c-y*s,
+      y:centerY+x*s+y*c
+    };
+  }
 
-    // Dark event horizon + weak halo.
-    const horizon = Math.min(w,h) * .062;
-    const grad = ctx.createRadialGradient(cx,cy,horizon*.2,cx,cy,horizon*2.8);
-    grad.addColorStop(0,"rgba(0,0,0,1)");
-    grad.addColorStop(.33,"rgba(0,0,0,1)");
-    grad.addColorStop(.58,"rgba(8,9,9,.72)");
-    grad.addColorStop(.74,"rgba(175,180,164,.055)");
-    grad.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=grad;
+  function drawCore(cx,cy){
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(diskRotation);
+
+    // A black shadow, not a grey circular halo: it visually merges the
+    // event horizon with the inner edge of the same projected disk.
+    ctx.shadowColor="rgba(0,0,0,.95)";
+    ctx.shadowBlur=Math.max(8,horizon*.22);
+    ctx.fillStyle="#000";
     ctx.beginPath();
-    ctx.arc(cx,cy,horizon*2.8,0,Math.PI*2);
+    ctx.ellipse(0,0,horizon*1.08,horizon*.73,0,0,Math.PI*2);
     ctx.fill();
 
-    // Tiny ASCII particles on elliptical spiral paths.
-    ctx.font = `${Math.max(6,Math.min(8,w/170))}px ui-monospace, SFMono-Regular, Consolas, monospace`;
+    ctx.restore();
+  }
+
+  function draw(time){
+    const now=time||performance.now();
+    const fpsGap=mobile()?40:32; // ~25 FPS phone, ~30 FPS desktop
+
+    if(now-lastFrame<fpsGap){
+      requestAnimationFrame(draw);
+      return;
+    }
+
+    lastFrame=now;
+    const dt=Math.min(.05,(now-lastTime)/1000||.033);
+    lastTime=now;
+
+    ctx.fillStyle="#020304";
+    ctx.fillRect(0,0,w,h);
+
+    // Very sparse background field. The visible structure should be the disk,
+    // not a uniform cloud of random characters.
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.font=`${mobile()?6:7}px ui-monospace, SFMono-Regular, Consolas, monospace`;
+
+    for(const star of stars){
+      ctx.fillStyle=`rgba(218,220,211,${star.alpha})`;
+      ctx.fillText(star.char,star.x,star.y);
+    }
+
+    const cx=centerX+mouseX*(mobile()?4:14);
+    const cy=centerY+mouseY*(mobile()?3:8);
+
+    // Projected particles. Inner streams become brighter and denser, so the
+    // event horizon grows naturally out of the disk instead of being encircled
+    // by an unrelated grey ring.
+    ctx.font=`${mobile()?6:Math.max(6,Math.min(8,w/185))}px ui-monospace, SFMono-Regular, Consolas, monospace`;
 
     for(const p of particles){
-      if(!prefersReduced){
-        const orbital = p.speed * dt * (1 + 140/(p.r+55));
-        p.a += orbital + p.drift;
-        p.r -= dt * (.2 + 3.2/(p.z+.2));
-        p.life += dt*.05;
+      if(!reduced){
+        const angular=p.speed*dt*(1+180/(p.r+70));
+        p.a+=angular;
+        p.r-=dt*(.18+3.5/(p.depth+.25));
+        p.life+=dt*.035;
       }
 
-      if(p.r < horizon*1.12 || p.r > Math.max(w,h)*.9 || p.life>1.5){
+      if(p.r<horizon*1.08||p.r>maxRadius||p.life>1.65){
         resetParticle(p);
       }
 
-      // Spiral perturbation creates the stretched "stream" look.
-      const spiral = Math.sin(p.a*2.15 + p.phase) * Math.min(35,p.r*.07);
-      const rr = p.r + spiral;
-      const squeeze = p.tilt;
-      const x = cx + Math.cos(p.a) * rr;
-      const y = cy + Math.sin(p.a) * rr * squeeze;
+      const point=project(p.r,p.a,p.lane);
+      const rx=point.x+(cx-centerX);
+      const ry=point.y+(cy-centerY);
 
-      // Rotate the disk around its center.
-      const rot = -.20;
-      const dx=x-cx, dy=y-cy;
-      const rx=cx + dx*Math.cos(rot)-dy*Math.sin(rot);
-      const ry=cy + dx*Math.sin(rot)+dy*Math.cos(rot);
+      if(rx<-24||rx>w+24||ry<-24||ry>h+24)continue;
 
-      if(rx<-20||rx>w+20||ry<-20||ry>h+20) continue;
+      const innerGlow=Math.exp(-Math.pow((p.r-horizon*1.55)/(horizon*.72),2));
+      const outerFade=Math.max(.04,1-p.r/maxRadius);
+      const alpha=Math.min(
+        .95,
+        (.08+p.brightness*.48+innerGlow*.42)*Math.pow(outerFade,.58)
+      );
 
-      const nearHorizon = Math.exp(-Math.pow((p.r-horizon*1.75)/(horizon*1.15),2));
-      const edgeFade = Math.min(1, p.r/(horizon*1.1)) * Math.max(.15,1-p.r/(Math.max(w,h)*.86));
-      const alpha = Math.min(.96, (.19+p.bright*.62 + nearHorizon*.34) * edgeFade);
-      const ci = Math.min(chars.length-1, Math.floor(p.char + nearHorizon*2.2));
+      const glyphIndex=Math.min(
+        glyphs.length-1,
+        Math.floor(p.glyph+innerGlow*2.6)
+      );
 
-      const shade = Math.floor(198 + 49*nearHorizon + 12*p.z);
-      ctx.fillStyle = `rgba(${shade},${shade},${Math.max(175,shade-12)},${alpha})`;
-      ctx.fillText(chars[ci],rx,ry);
+      const shade=Math.floor(176+p.depth*28+innerGlow*49);
+      ctx.fillStyle=`rgba(${shade},${shade},${Math.max(164,shade-11)},${alpha})`;
+      ctx.fillText(glyphs[glyphIndex],rx,ry);
     }
 
-    // Hard black core on top.
-    ctx.fillStyle="rgba(0,0,0,.96)";
-    ctx.beginPath();
-    ctx.ellipse(cx,cy,horizon*1.08,horizon*.78,-.2,0,Math.PI*2);
-    ctx.fill();
+    // The core masks the innermost particles and therefore shares exactly the
+    // same center and projected orientation as the accretion flow.
+    drawCore(cx,cy);
 
     requestAnimationFrame(draw);
   }
 
-  addEventListener("resize", resize, {passive:true});
-  addEventListener("pointermove", e => {
-    pointerX = (e.clientX/Math.max(1,w)-.5)*2;
-    pointerY = (e.clientY/Math.max(1,h)-.5)*2;
-  }, {passive:true});
+  addEventListener("resize",resize,{passive:true});
+
+  addEventListener("pointermove",event=>{
+    if(mobile())return;
+    mouseX=(event.clientX/Math.max(1,w)-.5)*2;
+    mouseY=(event.clientY/Math.max(1,h)-.5)*2;
+  },{passive:true});
 
   resize();
   requestAnimationFrame(draw);
