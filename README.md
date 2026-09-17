@@ -31,5 +31,5 @@ The page is intentionally small so it can grow later without redesigning the ent
 
 ## Contact
 
-- GitHub: `Lev-Fedotovskii`
+- GitHub: `FedotovskiiLev`
 - Telegram: `@haltontDev`
