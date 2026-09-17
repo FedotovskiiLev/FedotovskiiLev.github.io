@@ -49,3 +49,7 @@ The phone-only accretion lanes are now split into back and front passes, so one 
 ### v1.7 mobile overlap cleanup
 
 Phone-only front/back disk splitting now follows the same flattened disk geometry with a small dead zone around the mid-plane, so the accretion lanes overlap the core more cleanly and read less like crooked independent loops.
+
+### v1.8 mobile overlap fix
+
+The phone-only front/back split now uses projected screen-space height instead of the raw parametric angle. That makes the overlap read more like a real tilted disk: top arc behind the hole, bottom arc in front.

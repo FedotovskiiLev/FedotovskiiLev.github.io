@@ -235,21 +235,23 @@
             Math.sin(angle*7.2 - lane)*.28;
           if(visibility < -.62) continue;
 
-          // Use the same flattened disk geometry for depth splitting, and
-          // leave a dead zone around the mid-plane to avoid crooked overlap.
-          const depthY=Math.sin(angle)*(diskTilt + laneOffset*.05);
-          if(pass==="back" && depthY > -0.06) continue;
-          if(pass==="front" && depthY < 0.06) continue;
-
           const point=project(radius,angle,laneOffset);
           const rx=point.x+(cx-centerX);
           const ry=point.y+(cy-centerY);
 
           if(rx<-12||rx>w+12||ry<-12||ry>h+12) continue;
 
-          const frontBoost=Math.max(0,depthY)*1.8;
-          const alpha=.12 + t*.24 + Math.max(0,visibility)*.08 + frontBoost*.05;
-          const shade=Math.floor(170 + t*56 + frontBoost*16);
+          // Split by projected screen-space height, not the raw parametric angle.
+          // That makes the mobile overlap behave like Saturn rings:
+          // upper arc behind, lower arc in front.
+          const relY=ry-cy;
+          const deadZone=Math.max(2,horizon*.08);
+          if(pass==="back" && relY > -deadZone) continue;
+          if(pass==="front" && relY < deadZone) continue;
+
+          const frontBoost=Math.max(0,relY/(horizon*.9));
+          const alpha=.12 + t*.24 + Math.max(0,visibility)*.08 + frontBoost*.04;
+          const shade=Math.floor(170 + t*56 + frontBoost*14);
           const char=glyphs[3 + ((i + lane*2) % 7)];
 
           ctx.fillStyle=`rgba(${shade},${shade},${Math.max(158,shade-10)},${Math.min(.72,alpha)})`;
@@ -272,22 +274,23 @@
         // Leave gaps so this remains a hot inner stream rather than a ring.
         if(gate < -.28) continue;
 
-        const depthY=Math.sin(angle)*diskTilt;
-        if(pass==="back" && depthY > -0.06) continue;
-        if(pass==="front" && depthY < 0.06) continue;
-
         const ripple=1.40 + .10*Math.sin(angle*3.4+1.1);
         const radius=horizon*ripple;
         const point=project(radius,angle,.05*Math.sin(angle*1.8));
         const rx=point.x+(cx-centerX);
         const ry=point.y+(cy-centerY);
 
-        const frontBoost=Math.max(0,depthY)*1.9;
-        const alpha=.16 + frontBoost*.18 + (gate+.28)*.075;
-        const shade=Math.floor(198 + frontBoost*32);
+        const relY=ry-cy;
+        const deadZone=Math.max(2,horizon*.08);
+        if(pass==="back" && relY > -deadZone) continue;
+        if(pass==="front" && relY < deadZone) continue;
+
+        const frontBoost=Math.max(0,relY/(horizon*.8));
+        const alpha=.15 + frontBoost*.14 + (gate+.28)*.075;
+        const shade=Math.floor(198 + frontBoost*28);
         const char=glyphs[Math.min(glyphs.length-1,6+(i%5))];
 
-        ctx.fillStyle=`rgba(${shade},${shade},${shade-8},${Math.min(.78,alpha)})`;
+        ctx.fillStyle=`rgba(${shade},${shade},${shade-8},${Math.min(.76,alpha)})`;
         ctx.fillText(char,rx,ry);
       }
     }
