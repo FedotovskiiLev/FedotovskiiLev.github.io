@@ -60,7 +60,7 @@
       // instead of a bright circular cluster.
       centerX=w*.755;
       centerY=h*.265;
-      diskTilt=.39;
+      diskTilt=.36;
       diskRotation=-.16;
       horizon=Math.max(33,Math.min(w,h)*.096);
       maxRadius=Math.max(w,h)*.82;
@@ -215,19 +215,19 @@
 
       for(let lane=0;lane<2;lane++){
         const samples=158;
-        const laneOffset=lane===0?-0.34:0.38;
+        const laneOffset=lane===0?-0.18:0.22;
 
         for(let i=0;i<samples;i++){
           const t=i/(samples-1);
           const angle=
-            t*Math.PI*2.72 +
-            lane*Math.PI*.9 +
+            t*Math.PI*2.68 +
+            lane*Math.PI*.92 +
             now*.00023;
 
           // Radius winds inward instead of forming a closed ring.
           const radius=
-            horizon*(4.05 - 2.38*t) +
-            Math.sin(angle*2.1+lane)*horizon*.10;
+            horizon*(4.0 - 2.32*t) +
+            Math.sin(angle*2.1+lane)*horizon*.08;
 
           // Intentional gaps keep it filamentary.
           const visibility=
@@ -235,11 +235,11 @@
             Math.sin(angle*7.2 - lane)*.28;
           if(visibility < -.62) continue;
 
-          // Half of the disk should pass behind the hole, half in front,
-          // like Saturn's rings. We split rendering into two passes.
-          const frontness=Math.sin(angle);
-          if(pass==="back" && frontness > -0.02) continue;
-          if(pass==="front" && frontness <= -0.02) continue;
+          // Use the same flattened disk geometry for depth splitting, and
+          // leave a dead zone around the mid-plane to avoid crooked overlap.
+          const depthY=Math.sin(angle)*(diskTilt + laneOffset*.05);
+          if(pass==="back" && depthY > -0.06) continue;
+          if(pass==="front" && depthY < 0.06) continue;
 
           const point=project(radius,angle,laneOffset);
           const rx=point.x+(cx-centerX);
@@ -247,11 +247,12 @@
 
           if(rx<-12||rx>w+12||ry<-12||ry>h+12) continue;
 
-          const alpha=.13 + t*.26 + Math.max(0,visibility)*.08 + Math.max(0,frontness)*.06;
-          const shade=Math.floor(170 + t*58 + Math.max(0,frontness)*18);
+          const frontBoost=Math.max(0,depthY)*1.8;
+          const alpha=.12 + t*.24 + Math.max(0,visibility)*.08 + frontBoost*.05;
+          const shade=Math.floor(170 + t*56 + frontBoost*16);
           const char=glyphs[3 + ((i + lane*2) % 7)];
 
-          ctx.fillStyle=`rgba(${shade},${shade},${Math.max(158,shade-10)},${Math.min(.74,alpha)})`;
+          ctx.fillStyle=`rgba(${shade},${shade},${Math.max(158,shade-10)},${Math.min(.72,alpha)})`;
           ctx.fillText(char,rx,ry);
         }
       }
@@ -271,21 +272,22 @@
         // Leave gaps so this remains a hot inner stream rather than a ring.
         if(gate < -.28) continue;
 
-        const frontness=Math.sin(angle);
-        if(pass==="back" && frontness > -0.02) continue;
-        if(pass==="front" && frontness <= -0.02) continue;
+        const depthY=Math.sin(angle)*diskTilt;
+        if(pass==="back" && depthY > -0.06) continue;
+        if(pass==="front" && depthY < 0.06) continue;
 
-        const ripple=1.43 + .12*Math.sin(angle*3.4+1.1);
+        const ripple=1.40 + .10*Math.sin(angle*3.4+1.1);
         const radius=horizon*ripple;
-        const point=project(radius,angle,.08*Math.sin(angle*1.8));
+        const point=project(radius,angle,.05*Math.sin(angle*1.8));
         const rx=point.x+(cx-centerX);
         const ry=point.y+(cy-centerY);
 
-        const alpha=.18 + Math.max(0,frontness)*.22 + (gate+.28)*.085;
-        const shade=Math.floor(203 + Math.max(0,frontness)*36);
+        const frontBoost=Math.max(0,depthY)*1.9;
+        const alpha=.16 + frontBoost*.18 + (gate+.28)*.075;
+        const shade=Math.floor(198 + frontBoost*32);
         const char=glyphs[Math.min(glyphs.length-1,6+(i%5))];
 
-        ctx.fillStyle=`rgba(${shade},${shade},${shade-8},${Math.min(.86,alpha)})`;
+        ctx.fillStyle=`rgba(${shade},${shade},${shade-8},${Math.min(.78,alpha)})`;
         ctx.fillText(char,rx,ry);
       }
     }

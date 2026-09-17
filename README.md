@@ -45,3 +45,7 @@ Desktop rendering is unchanged. On phones the black hole is flatter, moved sligh
 ### v1.6 mobile depth pass
 
 The phone-only accretion lanes are now split into back and front passes, so one side goes behind the black hole and the other crosses in front of it. Animation speed was also increased to avoid a static-looking ring.
+
+### v1.7 mobile overlap cleanup
+
+Phone-only front/back disk splitting now follows the same flattened disk geometry with a small dead zone around the mid-plane, so the accretion lanes overlap the core more cleanly and read less like crooked independent loops.
