@@ -31,7 +31,8 @@
     // should visually read as a coherent accretion flow.
     const u=Math.random();
     const inner=horizon*1.12;
-    p.r=inner+(maxRadius-inner)*Math.pow(u,.72);
+    const radialExponent=mobile()?1.42:.72;
+    p.r=inner+(maxRadius-inner)*Math.pow(u,radialExponent);
     p.a=rand(0,Math.PI*2);
     p.phase=rand(0,Math.PI*2);
     p.lane=rand(-1,1);
@@ -54,12 +55,12 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
 
     if(mobile()){
-      centerX=w*.73;
+      centerX=w*.79;
       centerY=h*.285;
-      diskTilt=.57;
+      diskTilt=.54;
       diskRotation=-.22;
-      horizon=Math.max(31,Math.min(w,h)*.092);
-      maxRadius=Math.max(w,h)*.78;
+      horizon=Math.max(36,Math.min(w,h)*.112);
+      maxRadius=Math.max(w,h)*.76;
     }else{
       centerX=w*.705;
       centerY=h*.405;
@@ -71,7 +72,7 @@
 
     // Keep phones substantially cheaper than desktop.
     const target=mobile()
-      ? Math.min(1750,Math.max(900,Math.floor(w*h/300)))
+      ? Math.min(2050,Math.max(1150,Math.floor(w*h/255)))
       : Math.min(3900,Math.max(1900,Math.floor(w*h/450)));
 
     particles.length=0;
@@ -187,8 +188,12 @@
       const innerGlow=Math.exp(-Math.pow((p.r-horizon*1.55)/(horizon*.72),2));
       const outerFade=Math.max(.04,1-p.r/maxRadius);
       const alpha=Math.min(
-        .95,
-        (.08+p.brightness*.48+innerGlow*.42)*Math.pow(outerFade,.58)
+        .97,
+        (
+          (mobile()?.11:.08) +
+          p.brightness*(mobile()?.53:.48) +
+          innerGlow*(mobile()?.56:.42)
+        )*Math.pow(outerFade,.58)
       );
 
       const glyphIndex=Math.min(
@@ -199,6 +204,39 @@
       const shade=Math.floor(176+p.depth*28+innerGlow*49);
       ctx.fillStyle=`rgba(${shade},${shade},${Math.max(164,shade-11)},${alpha})`;
       ctx.fillText(glyphs[glyphIndex],rx,ry);
+    }
+
+    // On phones the canvas is physically small, so the event horizon can
+    // disappear into the black page. Draw a broken, ASCII-only inner stream
+    // in the *same projected disk plane*. It is intentionally incomplete:
+    // this reads as hot accretion material, not as a detached grey circle.
+    if(mobile()){
+      ctx.font="6px ui-monospace, SFMono-Regular, Consolas, monospace";
+      const laneCount=112;
+
+      for(let i=0;i<laneCount;i++){
+        const angle=(i/laneCount)*Math.PI*2 + now*.000015;
+        const gate=
+          Math.sin(angle*2.7+0.7) +
+          Math.sin(angle*5.1-0.35)*.42;
+
+        // Leave gaps so this remains a spiral filament rather than a ring.
+        if(gate < -.28) continue;
+
+        const ripple=1.48 + .18*Math.sin(angle*3.4+1.1);
+        const radius=horizon*ripple;
+        const point=project(radius,angle,.08*Math.sin(angle*1.8));
+        const rx=point.x+(cx-centerX);
+        const ry=point.y+(cy-centerY);
+
+        const front=Math.sin(angle-diskRotation);
+        const alpha=.30 + Math.max(0,front)*.26 + (gate+.28)*.11;
+        const shade=Math.floor(205 + Math.max(0,front)*38);
+        const char=glyphs[Math.min(glyphs.length-1,6+(i%5))];
+
+        ctx.fillStyle=`rgba(${shade},${shade},${shade-8},${Math.min(.88,alpha)})`;
+        ctx.fillText(char,rx,ry);
+      }
     }
 
     // The core masks the innermost particles and therefore shares exactly the

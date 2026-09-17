@@ -33,3 +33,7 @@ The page is intentionally small so it can grow later without redesigning the ent
 
 - GitHub: `FedotovskiiLev`
 - Telegram: `@haltontDev`
+
+## Mobile presentation
+
+The phone layout uses a reduced particle budget and a denser ASCII inner accretion stream, so the black-hole silhouette stays readable on small screens without turning the page into a battery benchmark. Hero actions stay compact and wrap naturally instead of becoming full-width blocks.
