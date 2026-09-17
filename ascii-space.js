@@ -31,7 +31,7 @@
     // should visually read as a coherent accretion flow.
     const u=Math.random();
     const inner=horizon*1.12;
-    const radialExponent=mobile()?1.42:.72;
+    const radialExponent=mobile()?1.16:.72;
     p.r=inner+(maxRadius-inner)*Math.pow(u,radialExponent);
     p.a=rand(0,Math.PI*2);
     p.phase=rand(0,Math.PI*2);
@@ -55,12 +55,15 @@
     ctx.setTransform(dpr,0,0,dpr,0,0);
 
     if(mobile()){
-      centerX=w*.79;
-      centerY=h*.285;
-      diskTilt=.54;
-      diskRotation=-.22;
-      horizon=Math.max(36,Math.min(w,h)*.112);
-      maxRadius=Math.max(w,h)*.76;
+      // Mobile composition is deliberately different from desktop:
+      // keep the hole fully visible, flatter, and recognisable as a disk
+      // instead of a bright circular cluster.
+      centerX=w*.755;
+      centerY=h*.265;
+      diskTilt=.39;
+      diskRotation=-.16;
+      horizon=Math.max(33,Math.min(w,h)*.096);
+      maxRadius=Math.max(w,h)*.82;
     }else{
       centerX=w*.705;
       centerY=h*.405;
@@ -206,6 +209,50 @@
       ctx.fillText(glyphs[glyphIndex],rx,ry);
     }
 
+    if(mobile()){
+      // Two coherent, broken spiral lanes. These are what make the object read
+      // as an accretion disk on a small screen; they are not a separate halo.
+      ctx.font="6px ui-monospace, SFMono-Regular, Consolas, monospace";
+
+      for(let lane=0;lane<2;lane++){
+        const samples=150;
+        const laneOffset=lane===0?-0.34:0.38;
+
+        for(let i=0;i<samples;i++){
+          const t=i/(samples-1);
+          const angle=
+            t*Math.PI*2.55 +
+            lane*Math.PI*.9 +
+            now*.000010;
+
+          // Radius slowly winds inward instead of forming a closed ring.
+          const radius=
+            horizon*(4.0 - 2.30*t) +
+            Math.sin(angle*2.1+lane)*horizon*.10;
+
+          // Intentional gaps keep it ASCII/filamentary.
+          const visibility=
+            Math.sin(angle*3.15 + lane*1.7) +
+            Math.sin(angle*7.2 - lane)*.28;
+          if(visibility < -.62) continue;
+
+          const point=project(radius,angle,laneOffset);
+          const rx=point.x+(cx-centerX);
+          const ry=point.y+(cy-centerY);
+
+          if(rx<-12||rx>w+12||ry<-12||ry>h+12) continue;
+
+          const inward=1-t;
+          const alpha=.14 + t*.27 + Math.max(0,visibility)*.08;
+          const shade=Math.floor(172 + t*57);
+          const char=glyphs[3 + ((i + lane*2) % 7)];
+
+          ctx.fillStyle=`rgba(${shade},${shade},${Math.max(158,shade-10)},${Math.min(.72,alpha)})`;
+          ctx.fillText(char,rx,ry);
+        }
+      }
+    }
+
     // On phones the canvas is physically small, so the event horizon can
     // disappear into the black page. Draw a broken, ASCII-only inner stream
     // in the *same projected disk plane*. It is intentionally incomplete:
@@ -223,14 +270,14 @@
         // Leave gaps so this remains a spiral filament rather than a ring.
         if(gate < -.28) continue;
 
-        const ripple=1.48 + .18*Math.sin(angle*3.4+1.1);
+        const ripple=1.43 + .12*Math.sin(angle*3.4+1.1);
         const radius=horizon*ripple;
         const point=project(radius,angle,.08*Math.sin(angle*1.8));
         const rx=point.x+(cx-centerX);
         const ry=point.y+(cy-centerY);
 
         const front=Math.sin(angle-diskRotation);
-        const alpha=.30 + Math.max(0,front)*.26 + (gate+.28)*.11;
+        const alpha=.20 + Math.max(0,front)*.24 + (gate+.28)*.085;
         const shade=Math.floor(205 + Math.max(0,front)*38);
         const char=glyphs[Math.min(glyphs.length-1,6+(i%5))];
 

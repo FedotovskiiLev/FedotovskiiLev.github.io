@@ -37,3 +37,7 @@ The page is intentionally small so it can grow later without redesigning the ent
 ## Mobile presentation
 
 The phone layout uses a reduced particle budget and a denser ASCII inner accretion stream, so the black-hole silhouette stays readable on small screens without turning the page into a battery benchmark. Hero actions stay compact and wrap naturally instead of becoming full-width blocks.
+
+### v1.5 mobile visual pass
+
+Desktop rendering is unchanged. On phones the black hole is flatter, moved slightly inward, and gains two broken spiral ASCII lanes so the accretion disk remains legible instead of collapsing into a circular cluster.
