@@ -10,7 +10,7 @@
     document.querySelectorAll("[data-ru][data-en]").forEach(el => {
       el.textContent = el.dataset[lang];
     });
-    langBtn.textContent = lang.toUpperCase();
+    langBtn.textContent = lang === "ru" ? "EN" : "RU";
     langBtn.setAttribute("aria-label", lang === "ru" ? "Переключить на английский" : "Switch to Russian");
   }
 
