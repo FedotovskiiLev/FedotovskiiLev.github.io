@@ -1,323 +1,133 @@
 (() => {
   "use strict";
-
   const canvas = document.getElementById("ascii-space");
   const ctx = canvas.getContext("2d", { alpha: false });
-
-  const glyphs = ["·",".",":","-","=","+","*","x","X","#","@"];
+  if (!ctx) return;
+  const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  const chars = ".,:-=+*#%@";
   const particles = [];
-  const stars = [];
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  let w=0,h=0,dpr=1;
-  let centerX=0,centerY=0;
-  let mouseX=0,mouseY=0;
-  let lastTime=performance.now();
-  let lastFrame=0;
-
-  let diskTilt=.48;
-  let diskRotation=-.18;
-  let horizon=52;
-  let maxRadius=700;
-
-  const rand=(a,b)=>a+Math.random()*(b-a);
-
-  function mobile(){
-    return w < 650;
+  const field = [];
+  const halo = [];
+  const foreground = [];
+  const turn = Math.PI * 2;
+  // All orbital layers use the same positive angular direction and depth law.
+  const orbitAngle = p => p.a + phase * p.speed / Math.pow(p.r, 1.5);
+  let w, h, cx, cy, radius, mobile, frame = 0, last = 0, phase = 0;
+  let pointerX = 0, pointerY = 0, driftX = 0, driftY = 0;
+  // Stable samples avoid flickering or regenerating the field on resize.
+  let seed = 73;
+  function random() { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }
+  for (let i = 0; i < 2600; i++) {
+    particles.push({ r: 1.25 + Math.pow(random(), 1.6) * 4.7, a: random() * turn, b: random(), speed: 1 });
   }
-
-  function resetParticle(p, initial=false){
-    // More samples toward the inner half of the disk, where the spiral
-    // should visually read as a coherent accretion flow.
-    const u=Math.random();
-    const inner=horizon*1.12;
-    const radialExponent=mobile()?1.16:.72;
-    p.r=inner+(maxRadius-inner)*Math.pow(u,radialExponent);
-    p.a=rand(0,Math.PI*2);
-    p.phase=rand(0,Math.PI*2);
-    p.lane=rand(-1,1);
-    p.depth=rand(.35,1);
-    p.speed=rand(.045,.145)*(Math.random()<.08?1.7:1);
-    p.glyph=Math.floor(rand(0,glyphs.length-.01));
-    p.brightness=rand(.20,.88);
-    p.life=initial?rand(0,.9):0;
+  for (let i = 0; i < 650; i++) {
+    field.push({ x: random(), y: random(), depth: random(), speed: .4 + random(), a: random() * Math.PI * 2, glyph: Math.floor(random() * chars.length) });
   }
-
-  function resize(){
-    dpr=Math.min(devicePixelRatio||1,mobile()?1.15:1.35);
-    w=innerWidth;
-    h=innerHeight;
-
-    canvas.width=Math.floor(w*dpr);
-    canvas.height=Math.floor(h*dpr);
-    canvas.style.width=w+"px";
-    canvas.style.height=h+"px";
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-
-    if(mobile()){
-      // Mobile composition is deliberately different from desktop:
-      // keep the hole fully visible, flatter, and recognisable as a disk
-      // instead of a bright circular cluster.
-      centerX=w*.755;
-      centerY=h*.265;
-      diskTilt=.36;
-      diskRotation=-.16;
-      horizon=Math.max(33,Math.min(w,h)*.096);
-      maxRadius=Math.max(w,h)*.82;
-    }else{
-      centerX=w*.705;
-      centerY=h*.405;
-      diskTilt=.46;
-      diskRotation=-.19;
-      horizon=Math.min(w,h)*.070;
-      maxRadius=Math.max(w,h)*.72;
-    }
-
-    // Keep phones substantially cheaper than desktop.
-    const target=mobile()
-      ? Math.min(2050,Math.max(1150,Math.floor(w*h/255)))
-      : Math.min(3900,Math.max(1900,Math.floor(w*h/450)));
-
-    particles.length=0;
-    for(let i=0;i<target;i++){
-      const p={};
-      resetParticle(p,true);
-      particles.push(p);
-    }
-
-    stars.length=0;
-    const starCount=Math.floor(w*h/(mobile()?35000:28500));
-    for(let i=0;i<starCount;i++){
-      stars.push({
-        x:Math.random()*w,
-        y:Math.random()*h,
-        alpha:rand(.035,.17),
-        char:glyphs[Math.floor(rand(0,5))]
-      });
-    }
+  for (let i = 0; i < 570; i++) {
+    halo.push({ r: 1.035 + Math.pow(random(), 1.8) * .34, a: random() * turn, speed: .8 + random() * .35, b: random(), wobble: random() * turn, glyph: 3 + Math.floor(random() * 7) });
   }
-
-  function project(radius,angle,lane=0){
-    // All streams share one disk plane. A small lane warp creates separate
-    // filaments without making the black hole and disk look unrelated.
-    const warp=1+Math.sin(angle*2.2+lane*2.6)*.026;
-    const rr=radius*warp;
-    const localTilt=diskTilt+lane*.025;
-
-    let x=Math.cos(angle)*rr;
-    let y=Math.sin(angle)*rr*localTilt;
-
-    // Thin spiral filament displacement, strongest farther from the core.
-    const filament=Math.sin(angle*3.15+lane*5.5)*Math.min(10,rr*.012);
-    y+=filament;
-
-    const c=Math.cos(diskRotation),s=Math.sin(diskRotation);
-    return {
-      x:centerX+x*c-y*s,
-      y:centerY+x*s+y*c
-    };
+  for (let i = 0; i < 1050; i++) {
+    foreground.push({ r: 1.18 + Math.pow(random(), 1.5) * 2.25, a: random() * turn, speed: .85 + random() * .3, b: random(), height: (random() - .5) * .16, wobble: random() * turn, glyph: 3 + Math.floor(random() * 7) });
   }
-
-  function drawCore(cx,cy){
+  function resize() {
+    w = document.documentElement.clientWidth;
+    h = innerHeight;
+    mobile = w <= 700;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    canvas.style.height = h + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx = w * (mobile ? .55 : .74);
+    cy = mobile ? 220 : h * .38;
+    radius = mobile ? Math.min(w * .105, 48) : Math.min(w * .061, 92);
+    render();
+  }
+  function glyph(x, y, brightness, index) {
+    if (x < -10 || x > w + 10 || y < -10 || y > h + 10) return;
+    ctx.fillStyle = `rgba(225,225,225,${Math.max(0, Math.min(1, brightness))})`;
+    ctx.fillText(chars[Math.min(9, Math.max(0, index))], x, y);
+  }
+  function render() {
+    ctx.fillStyle = "#080808"; ctx.fillRect(0, 0, w, h);
+    ctx.font = `${mobile ? 7 : 9}px Consolas, monospace`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.save();
-    ctx.translate(cx,cy);
-    ctx.rotate(diskRotation);
-
-    // A black shadow, not a grey circular halo: it visually merges the
-    // event horizon with the inner edge of the same projected disk.
-    ctx.shadowColor="rgba(0,0,0,.95)";
-    ctx.shadowBlur=Math.max(8,horizon*.22);
-    ctx.fillStyle="#000";
-    ctx.beginPath();
-    ctx.ellipse(0,0,horizon*1.08,horizon*.73,0,0,Math.PI*2);
-    ctx.fill();
-
+    ctx.translate(driftX, driftY);
+    // Free particles travel throughout the viewport, beyond the accretion disk.
+    const count = Math.min(field.length, Math.floor(w * h / (mobile ? 1700 : 2200)));
+    for (let i = 0; i < count; i++) {
+      const p = field[i];
+      const u = ((p.x + phase * .028 * p.speed) % 1 + 1) % 1;
+      const v = ((p.y - phase * .017 * p.speed) % 1 + 1) % 1;
+      const edge = Math.min(1, u * 14, (1 - u) * 14, v * 14, (1 - v) * 14);
+      const x = u * w + Math.sin(phase * .55 + p.a) * (12 + p.depth * 25);
+      const y = v * h + Math.cos(phase * .4 + p.a) * (8 + p.depth * 18);
+      glyph(x - driftX * p.depth * .6, y - driftY * p.depth * .6, edge * (.09 + p.depth * .24), p.glyph);
+    }
+    // Thin tilted accretion disk, masked by the circular shadow.
+    const rotation = -.17, c = Math.cos(rotation), s = Math.sin(rotation);
+    for (const p of particles) {
+      const a = orbitAngle(p);
+      const r = p.r * radius;
+      const x = Math.cos(a) * r, y = Math.sin(a) * r * .27;
+      const filament = .64 + .36 * Math.sin(a * 3 + p.r * 3.4);
+      const glow = Math.pow(1 - (p.r - 1.25) / 4.7, 1.5);
+      const bright = (.12 + .75 * glow) * filament * (.35 + p.b * .65);
+      glyph(cx + x * c - y * s, cy + x * s + y * c, bright, Math.floor(glow * 6 + p.b * 3));
+    }
+    ctx.fillStyle = "#080808";
+    ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.fill();
+    // Irregular orbits replace concentric rows. Positive screen-space sine
+    // preserves the disk's direction on both the upper and lower arcs.
+    for (const p of halo) {
+      const a = orbitAngle(p);
+      const r = radius * (p.r + Math.sin(a * 2 + p.wobble) * .016);
+      const upper = Math.max(0, -Math.sin(a));
+      const falloff = 1 - (p.r - 1.035) / .4;
+      const brightness = (.12 + upper * .65) * falloff * (.4 + p.b * .6);
+      glyph(cx + Math.cos(a) * r, cy + Math.sin(a) * r, brightness, p.glyph);
+    }
+    // Only the near half passes in front of the shadow. Each particle follows
+    // an actual disk orbit, with individual height and continuous turbulence.
+    for (const p of foreground) {
+      const a = orbitAngle(p);
+      const depth = Math.sin(a);
+      if (depth <= 0) continue;
+      const r = radius * (p.r + Math.sin(a * 3 + p.wobble) * .035);
+      const x = Math.cos(a) * r;
+      const y = depth * r * .27 + radius * (p.height + Math.sin(a * 2 + p.wobble) * .025);
+      const fade = Math.min(1, depth * 6) * Math.pow(1 - (p.r - 1.18) / 2.5, .8);
+      glyph(cx + x * c - y * s, cy + x * s + y * c, fade * (.22 + p.b * .53), p.glyph);
+    }
     ctx.restore();
   }
-
-  function draw(time){
-    const now=time||performance.now();
-    const fpsGap=mobile()?40:32; // ~25 FPS phone, ~30 FPS desktop
-
-    if(now-lastFrame<fpsGap){
-      requestAnimationFrame(draw);
-      return;
+  function tick(time) {
+    frame = 0;
+    if (document.hidden || motion.matches) return;
+    if (time - last >= (mobile ? 40 : 32)) {
+      const dt = Math.min(time - last, 100);
+      phase += dt * .00032;
+      const ease = 1 - Math.exp(-dt / 180);
+      driftX += ((mobile ? 0 : pointerX * 28) - driftX) * ease;
+      driftY += ((mobile ? 0 : pointerY * 18) - driftY) * ease;
+      last = time; render();
     }
-
-    lastFrame=now;
-    const dt=Math.min(.05,(now-lastTime)/1000||.033);
-    lastTime=now;
-
-    ctx.fillStyle="#020304";
-    ctx.fillRect(0,0,w,h);
-
-    // Very sparse background field. The visible structure should be the disk,
-    // not a uniform cloud of random characters.
-    ctx.textAlign="center";
-    ctx.textBaseline="middle";
-    ctx.font=`${mobile()?6:7}px ui-monospace, SFMono-Regular, Consolas, monospace`;
-
-    for(const star of stars){
-      ctx.fillStyle=`rgba(218,220,211,${star.alpha})`;
-      ctx.fillText(star.char,star.x,star.y);
-    }
-
-    const cx=centerX+mouseX*(mobile()?4:14);
-    const cy=centerY+mouseY*(mobile()?3:8);
-
-    // Projected particles. Inner streams become brighter and denser, so the
-    // event horizon grows naturally out of the disk instead of being encircled
-    // by an unrelated grey ring.
-    ctx.font=`${mobile()?6:Math.max(6,Math.min(8,w/185))}px ui-monospace, SFMono-Regular, Consolas, monospace`;
-
-    for(const p of particles){
-      if(!reduced){
-        const angular=p.speed*dt*(1+180/(p.r+70));
-        p.a+=angular;
-        p.r-=dt*(.18+3.5/(p.depth+.25));
-        p.life+=dt*.035;
-      }
-
-      if(p.r<horizon*1.08||p.r>maxRadius||p.life>1.65){
-        resetParticle(p);
-      }
-
-      const point=project(p.r,p.a,p.lane);
-      const rx=point.x+(cx-centerX);
-      const ry=point.y+(cy-centerY);
-
-      if(rx<-24||rx>w+24||ry<-24||ry>h+24)continue;
-
-      const innerGlow=Math.exp(-Math.pow((p.r-horizon*1.55)/(horizon*.72),2));
-      const outerFade=Math.max(.04,1-p.r/maxRadius);
-      const alpha=Math.min(
-        .97,
-        (
-          (mobile()?.11:.08) +
-          p.brightness*(mobile()?.53:.48) +
-          innerGlow*(mobile()?.56:.42)
-        )*Math.pow(outerFade,.58)
-      );
-
-      const glyphIndex=Math.min(
-        glyphs.length-1,
-        Math.floor(p.glyph+innerGlow*2.6)
-      );
-
-      const shade=Math.floor(176+p.depth*28+innerGlow*49);
-      ctx.fillStyle=`rgba(${shade},${shade},${Math.max(164,shade-11)},${alpha})`;
-      ctx.fillText(glyphs[glyphIndex],rx,ry);
-    }
-
-    function renderMobileSpiralLanes(pass){
-      if(!mobile()) return;
-      ctx.font="6px ui-monospace, SFMono-Regular, Consolas, monospace";
-
-      for(let lane=0;lane<2;lane++){
-        const samples=158;
-        const laneOffset=lane===0?-0.18:0.22;
-
-        for(let i=0;i<samples;i++){
-          const t=i/(samples-1);
-          const angle=
-            t*Math.PI*2.68 +
-            lane*Math.PI*.92 +
-            now*.00023;
-
-          // Radius winds inward instead of forming a closed ring.
-          const radius=
-            horizon*(4.0 - 2.32*t) +
-            Math.sin(angle*2.1+lane)*horizon*.08;
-
-          // Intentional gaps keep it filamentary.
-          const visibility=
-            Math.sin(angle*3.15 + lane*1.7) +
-            Math.sin(angle*7.2 - lane)*.28;
-          if(visibility < -.62) continue;
-
-          const point=project(radius,angle,laneOffset);
-          const rx=point.x+(cx-centerX);
-          const ry=point.y+(cy-centerY);
-
-          if(rx<-12||rx>w+12||ry<-12||ry>h+12) continue;
-
-          // Split by projected screen-space height, not the raw parametric angle.
-          // That makes the mobile overlap behave like Saturn rings:
-          // upper arc behind, lower arc in front.
-          const relY=ry-cy;
-          const deadZone=Math.max(2,horizon*.08);
-          if(pass==="back" && relY > -deadZone) continue;
-          if(pass==="front" && relY < deadZone) continue;
-
-          const frontBoost=Math.max(0,relY/(horizon*.9));
-          const alpha=.12 + t*.24 + Math.max(0,visibility)*.08 + frontBoost*.04;
-          const shade=Math.floor(170 + t*56 + frontBoost*14);
-          const char=glyphs[3 + ((i + lane*2) % 7)];
-
-          ctx.fillStyle=`rgba(${shade},${shade},${Math.max(158,shade-10)},${Math.min(.72,alpha)})`;
-          ctx.fillText(char,rx,ry);
-        }
-      }
-    }
-
-    function renderMobileInnerStream(pass){
-      if(!mobile()) return;
-      ctx.font="6px ui-monospace, SFMono-Regular, Consolas, monospace";
-      const laneCount=116;
-
-      for(let i=0;i<laneCount;i++){
-        const angle=(i/laneCount)*Math.PI*2 + now*.00018;
-        const gate=
-          Math.sin(angle*2.7+0.7) +
-          Math.sin(angle*5.1-0.35)*.42;
-
-        // Leave gaps so this remains a hot inner stream rather than a ring.
-        if(gate < -.28) continue;
-
-        const ripple=1.40 + .10*Math.sin(angle*3.4+1.1);
-        const radius=horizon*ripple;
-        const point=project(radius,angle,.05*Math.sin(angle*1.8));
-        const rx=point.x+(cx-centerX);
-        const ry=point.y+(cy-centerY);
-
-        const relY=ry-cy;
-        const deadZone=Math.max(2,horizon*.08);
-        if(pass==="back" && relY > -deadZone) continue;
-        if(pass==="front" && relY < deadZone) continue;
-
-        const frontBoost=Math.max(0,relY/(horizon*.8));
-        const alpha=.15 + frontBoost*.14 + (gate+.28)*.075;
-        const shade=Math.floor(198 + frontBoost*28);
-        const char=glyphs[Math.min(glyphs.length-1,6+(i%5))];
-
-        ctx.fillStyle=`rgba(${shade},${shade},${shade-8},${Math.min(.76,alpha)})`;
-        ctx.fillText(char,rx,ry);
-      }
-    }
-
-    // Behind-the-hole part of the mobile disk.
-    renderMobileSpiralLanes("back");
-    renderMobileInnerStream("back");
-
-    // The core masks the innermost particles and therefore shares exactly the
-    // same center and projected orientation as the accretion flow.
-    drawCore(cx,cy);
-
-    // In-front part of the mobile disk.
-    renderMobileSpiralLanes("front");
-    renderMobileInnerStream("front");
-
-    requestAnimationFrame(draw);
+    frame = requestAnimationFrame(tick);
   }
-
-  addEventListener("resize",resize,{passive:true});
-
-  addEventListener("pointermove",event=>{
-    if(mobile())return;
-    mouseX=(event.clientX/Math.max(1,w)-.5)*2;
-    mouseY=(event.clientY/Math.max(1,h)-.5)*2;
-  },{passive:true});
-
-  resize();
-  requestAnimationFrame(draw);
+  function schedule() {
+    cancelAnimationFrame(frame); frame = 0; last = performance.now();
+    if (!document.hidden && !motion.matches) frame = requestAnimationFrame(tick);
+    else if (motion.matches) { driftX = 0; driftY = 0; render(); }
+  }
+  addEventListener("pointermove", event => {
+    if (mobile || motion.matches || event.pointerType === "touch") return;
+    pointerX = (event.clientX / w - .5) * 2;
+    pointerY = (event.clientY / h - .5) * 2;
+  }, { passive: true });
+  document.documentElement.addEventListener("pointerleave", () => { pointerX = 0; pointerY = 0; });
+  addEventListener("blur", () => { pointerX = 0; pointerY = 0; });
+  addEventListener("resize", resize, { passive: true });
+  document.addEventListener("visibilitychange", schedule);
+  motion.addEventListener("change", schedule);
+  resize(); schedule();
 })();
